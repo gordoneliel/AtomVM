@@ -20,6 +20,8 @@
 
 #include <esp_log.h>
 #include <esp_system.h>
+#include <nvs.h>
+#include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <sdkconfig.h>
@@ -77,12 +79,44 @@ void app_main()
     fprintf(stdout, "%s", ATOMVM_BANNER);
     ESP_LOGI(TAG, "Starting AtomVM revision " ATOMVM_VERSION);
 
+    // --- A/B OTA slot selection with rollback safety ---
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        nvs_flash_erase();
+        nvs_err = nvs_flash_init();
+    }
+
+    uint8_t active_slot = 0;   // 0 = avm_a (default), 1 = avm_b
+    uint8_t boot_count = 0;
+    uint8_t max_boot_attempts = 3;
+
+    nvs_handle_t nvs;
+    if (nvs_open("ota", NVS_READWRITE, &nvs) == ESP_OK) {
+        nvs_get_u8(nvs, "active", &active_slot);
+        nvs_get_u8(nvs, "boots", &boot_count);
+
+        boot_count++;
+        if (boot_count > max_boot_attempts) {
+            ESP_LOGW(TAG, "Boot count %d exceeded max %d, rolling back!", boot_count, max_boot_attempts);
+            active_slot = active_slot ? 0 : 1;
+            boot_count = 1;
+            nvs_set_u8(nvs, "active", active_slot);
+        }
+        nvs_set_u8(nvs, "boots", boot_count);
+        nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+
+    const char *part_name = active_slot ? "avm_b" : "avm_a";
+    ESP_LOGI(TAG, "OTA: booting from %s (attempt %d/%d)", part_name, boot_count, max_boot_attempts);
+
     spi_flash_mmap_handle_t handle;
     int size;
-    const void *startup_avm = esp32_sys_mmap_partition("boot.avm", &handle, &size);
+    const void *startup_avm = esp32_sys_mmap_partition(part_name, &handle, &size);
     if (IS_NULL_PTR(startup_avm)) {
-        ESP_LOGI(TAG, "Trying deprecated main.avm partition.");
-        startup_avm = esp32_sys_mmap_partition("main.avm", &handle, &size);
+        const char *fallback = active_slot ? "avm_a" : "avm_b";
+        ESP_LOGW(TAG, "OTA: %s failed, trying fallback %s", part_name, fallback);
+        startup_avm = esp32_sys_mmap_partition(fallback, &handle, &size);
     }
 
     uint32_t startup_beam_size;
