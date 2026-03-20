@@ -55,7 +55,7 @@ static Context *uart_driver_create_port(GlobalContext *global, term opts);
 static NativeHandlerResult uart_driver_consume_mailbox(Context *ctx);
 
 #define TAG "uart_driver"
-#define UART_BUF_SIZE 256
+#define UART_BUF_SIZE 2048
 #define NO_REF 0
 #define NO_READER term_invalid_term()
 #define PIN_ERROR -2
