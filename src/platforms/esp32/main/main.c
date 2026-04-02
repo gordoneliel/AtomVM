@@ -86,7 +86,7 @@ void app_main()
         nvs_err = nvs_flash_init();
     }
 
-    uint8_t active_slot = 0;   // 0 = avm_a (default), 1 = avm_b
+    uint8_t active_slot = 0;   // 0 = main_a (default), 1 = main_b
     uint8_t boot_count = 0;
     uint8_t max_boot_attempts = 3;
 
@@ -107,14 +107,14 @@ void app_main()
         nvs_close(nvs);
     }
 
-    const char *part_name = active_slot ? "avm_b" : "avm_a";
+    const char *part_name = active_slot ? "main_b" : "main_a";
     ESP_LOGI(TAG, "OTA: booting from %s (attempt %d/%d)", part_name, boot_count, max_boot_attempts);
 
     spi_flash_mmap_handle_t handle;
     int size;
     const void *startup_avm = esp32_sys_mmap_partition(part_name, &handle, &size);
     if (IS_NULL_PTR(startup_avm)) {
-        const char *fallback = active_slot ? "avm_a" : "avm_b";
+        const char *fallback = active_slot ? "main_a" : "main_b";
         ESP_LOGW(TAG, "OTA: %s failed, trying fallback %s", part_name, fallback);
         startup_avm = esp32_sys_mmap_partition(fallback, &handle, &size);
     }

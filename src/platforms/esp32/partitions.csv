@@ -1,12 +1,14 @@
-# Copyright 2018-2021 Davide Bettio <davide@uninstall.it>
-# Copyright 2018-2021 Fred Dushin <fred@dushin.net>
-#
-# SPDX-License-Identifier: Apache-2.0 OR LGPL-2.1-or-later
+# Capsule A/B OTA partition layout (8MB flash)
+# Firmware: ota_0/ota_1 (ESP-IDF bootloader selects via otadata)
+# AVM: main_a/main_b (AtomVM selects via NVS "active" flag)
+# Both swap together via capsule_nif:activate
 
-# Name,   Type, SubType, Offset,  Size, Flags
-# Note: if you change the phy_init or app partition offset, make sure to change the offset in Kconfig.projbuild
-nvs,      data, nvs,       0x9000,     0x6000,
-phy_init, data, phy,       0xf000,     0x1000,
-factory,  app,  factory,  0x10000,   0x250000,
-avm_a,    data, phy,      0x260000,   0x90000,
-avm_b,    data, phy,      0x2F0000,   0x90000,
+# Name,      Type, SubType,  Offset,    Size,
+nvs,         data, nvs,      0x9000,    0x6000,
+otadata,     data, ota,      0xF000,    0x2000,
+phy_init,    data, phy,      0x11000,   0x1000,
+ota_0,       app,  ota_0,    0x20000,   0x2E0000,
+ota_1,       app,  ota_1,    0x300000,  0x2E0000,
+main_a,      data, fat,      0x5E0000,  0x90000,
+main_b,      data, fat,      0x670000,  0x90000,
+storage,     data, spiffs,   0x700000,  0x100000,
